@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Discussion Recorder</title>
+<title>YISS Discussion Recorder</title>
 <style>
   :root {
-    --ink: #1c1f1a;
-    --paper: #f6f4ee;
-    --panel: #24271f;
-    --moss: #4a5d3a;
-    --moss-light: #7a9463;
-    --clay: #b5562f;
-    --line: #d8d3c4;
-    --mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+    --ink: #0b2545;
+    --paper: #ffffff;
+    --panel: #0b2545;
+    --blue: #1257c2;
+    --blue-light: #4f8ff7;
+    --blue-pale: #e8f0fd;
+    --line: #cddcf3;
+    --rec-red: #d64545;
   }
 
   * { box-sizing: border-box; }
@@ -41,22 +41,56 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    border-bottom: 2px solid var(--ink);
+    border-bottom: 2px solid var(--blue);
     padding-bottom: 14px;
     margin-bottom: 24px;
   }
 
   h1 {
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     letter-spacing: 0.02em;
     margin: 0;
     text-transform: uppercase;
+    color: var(--ink);
   }
 
   .tag {
     font-size: 0.7rem;
-    color: var(--moss);
+    color: var(--blue);
     letter-spacing: 0.05em;
+  }
+
+  .mode-select {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .mode-option {
+    flex: 1;
+    border: 2px solid var(--line);
+    background: var(--blue-pale);
+    color: var(--ink);
+    border-radius: 4px;
+    padding: 12px 10px;
+    font-size: 0.78rem;
+    text-align: center;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .mode-option.active {
+    border-color: var(--blue);
+    background: var(--blue);
+    color: #fff;
+  }
+
+  .mode-option:disabled,
+  .mode-option[data-locked="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .stage {
@@ -70,6 +104,11 @@
     justify-content: center;
   }
 
+  .stage.audio-mode {
+    aspect-ratio: 16 / 6;
+    background: linear-gradient(135deg, var(--panel), #163a70);
+  }
+
   video {
     width: 100%;
     height: 100%;
@@ -81,12 +120,53 @@
   .stage.idle::after {
     content: "camera preview will appear here";
     position: absolute;
-    color: #8b8f80;
+    color: #9fb7dd;
     font-size: 0.8rem;
     letter-spacing: 0.03em;
   }
 
+  .stage.audio-mode.idle::after {
+    content: "microphone only — no video preview";
+  }
+
   .stage.idle video { display: none; }
+
+  .audio-icon {
+    display: none;
+    color: #dbe8ff;
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+
+  .audio-icon .bars {
+    display: flex;
+    gap: 4px;
+    align-items: flex-end;
+    justify-content: center;
+    height: 36px;
+    margin-bottom: 10px;
+  }
+
+  .audio-icon .bars span {
+    width: 5px;
+    background: var(--blue-light);
+    border-radius: 2px;
+    animation: bar 1s ease-in-out infinite;
+  }
+  .audio-icon .bars span:nth-child(1) { height: 40%; animation-delay: 0s; }
+  .audio-icon .bars span:nth-child(2) { height: 80%; animation-delay: 0.15s; }
+  .audio-icon .bars span:nth-child(3) { height: 55%; animation-delay: 0.3s; }
+  .audio-icon .bars span:nth-child(4) { height: 90%; animation-delay: 0.45s; }
+  .audio-icon .bars span:nth-child(5) { height: 60%; animation-delay: 0.6s; }
+
+  @keyframes bar {
+    0%, 100% { transform: scaleY(0.5); }
+    50% { transform: scaleY(1); }
+  }
+
+  .stage.audio-mode.active .audio-icon { display: block; }
+  .stage.audio-mode.active::after { display: none; }
 
   .rec-badge {
     position: absolute;
@@ -95,7 +175,7 @@
     display: none;
     align-items: center;
     gap: 6px;
-    background: rgba(0,0,0,0.55);
+    background: rgba(11,37,69,0.75);
     color: #fff;
     padding: 5px 10px 5px 8px;
     border-radius: 20px;
@@ -109,7 +189,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--clay);
+    background: var(--rec-red);
     animation: pulse 1.2s ease-in-out infinite;
   }
 
@@ -122,7 +202,7 @@
     position: absolute;
     top: 12px;
     right: 12px;
-    background: rgba(0,0,0,0.55);
+    background: rgba(11,37,69,0.75);
     color: #fff;
     padding: 5px 10px;
     border-radius: 20px;
@@ -134,11 +214,11 @@
   .status-line {
     margin-top: 14px;
     font-size: 0.8rem;
-    color: var(--moss);
+    color: var(--blue);
     min-height: 1.2em;
     letter-spacing: 0.01em;
   }
-  .status-line.error { color: var(--clay); }
+  .status-line.error { color: var(--rec-red); }
 
   .controls {
     display: flex;
@@ -153,9 +233,9 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     padding: 12px 18px;
-    border: 2px solid var(--ink);
+    border: 2px solid var(--blue);
     background: var(--paper);
-    color: var(--ink);
+    color: var(--blue);
     cursor: pointer;
     border-radius: 3px;
     flex: 1;
@@ -171,22 +251,21 @@
   }
 
   #startBtn {
-    background: var(--moss);
-    color: var(--paper);
-    border-color: var(--moss);
+    background: var(--blue);
+    color: #fff;
   }
-  #startBtn:hover:not(:disabled) { background: var(--moss-light); border-color: var(--moss-light); }
+  #startBtn:hover:not(:disabled) { background: var(--blue-light); border-color: var(--blue-light); }
 
   #stopBtn {
-    background: var(--clay);
-    color: var(--paper);
-    border-color: var(--clay);
+    background: var(--rec-red);
+    color: #fff;
+    border-color: var(--rec-red);
   }
   #stopBtn:hover:not(:disabled) { filter: brightness(1.08); }
 
   #downloadBtn {
     background: var(--ink);
-    color: var(--paper);
+    color: #fff;
     border-color: var(--ink);
     display: none;
   }
@@ -207,12 +286,12 @@
   .progress-fill {
     height: 100%;
     width: 0%;
-    background: var(--moss);
+    background: var(--blue);
     transition: width 0.2s ease;
   }
   .progress-label {
     font-size: 0.72rem;
-    color: var(--moss);
+    color: var(--blue);
     margin-top: 6px;
   }
 
@@ -221,7 +300,7 @@
     border-top: 1px solid var(--line);
     padding-top: 14px;
     font-size: 0.7rem;
-    color: #8b8f80;
+    color: #7a91b8;
     line-height: 1.6;
   }
 
@@ -231,7 +310,7 @@
   label {
     display: block;
     font-size: 0.72rem;
-    color: var(--moss);
+    color: var(--blue);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 6px;
@@ -248,7 +327,7 @@
   }
   input[type="text"]:focus {
     outline: none;
-    border-color: var(--moss);
+    border-color: var(--blue);
   }
 </style>
 </head>
@@ -256,7 +335,7 @@
 <div class="wrap">
 
   <header>
-    <h1>Discussion Recorder</h1>
+    <h1>YISS Discussion Recorder</h1>
     <span class="tag">local &amp; private</span>
   </header>
 
@@ -265,17 +344,26 @@
     <input type="text" id="groupName" placeholder="e.g. 3A-group2-topic1" maxlength="60">
   </div>
 
+  <div class="mode-select" id="modeSelect">
+    <button type="button" class="mode-option active" id="modeVideo" data-mode="video">Video + Audio</button>
+    <button type="button" class="mode-option" id="modeAudio" data-mode="audio">Audio only</button>
+  </div>
+
   <div class="stage idle" id="stage">
     <video id="preview" autoplay muted playsinline></video>
+    <div class="audio-icon" id="audioIcon">
+      <div class="bars"><span></span><span></span><span></span><span></span><span></span></div>
+      RECORDING AUDIO
+    </div>
     <span class="rec-badge" id="recBadge"><span class="dot"></span>REC</span>
     <span class="timer" id="timer">00:00</span>
   </div>
 
-  <div class="status-line" id="statusLine">Tap "Start camera" to begin.</div>
+  <div class="status-line" id="statusLine">Choose a mode, then tap "Start camera" to begin.</div>
 
   <div class="progress-wrap" id="progressWrap">
     <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
-    <div class="progress-label" id="progressLabel">Converting to MP4…</div>
+    <div class="progress-label" id="progressLabel">Converting…</div>
   </div>
 
   <div class="controls">
@@ -298,6 +386,7 @@
 (function () {
   const stage = document.getElementById('stage');
   const preview = document.getElementById('preview');
+  const audioIcon = document.getElementById('audioIcon');
   const startBtn = document.getElementById('startBtn');
   const recordBtn = document.getElementById('recordBtn');
   const stopBtn = document.getElementById('stopBtn');
@@ -309,15 +398,18 @@
   const progressWrap = document.getElementById('progressWrap');
   const progressFill = document.getElementById('progressFill');
   const progressLabel = document.getElementById('progressLabel');
+  const modeVideoBtn = document.getElementById('modeVideo');
+  const modeAudioBtn = document.getElementById('modeAudio');
 
   let stream = null;
   let recorder = null;
   let chunks = [];
   let recordedMime = '';
-  let nativeMp4 = false;
+  let nativeGoodFormat = false;
   let timerInterval = null;
   let seconds = 0;
   let finalBlob = null;
+  let mode = 'video'; // 'video' or 'audio'
 
   function setStatus(msg, isError) {
     statusLine.textContent = msg;
@@ -330,29 +422,55 @@
     return m + ':' + r;
   }
 
+  function setMode(newMode) {
+    if (stream) return; // locked once camera/mic has started
+    mode = newMode;
+    modeVideoBtn.classList.toggle('active', mode === 'video');
+    modeAudioBtn.classList.toggle('active', mode === 'audio');
+    stage.classList.toggle('audio-mode', mode === 'audio');
+  }
+
+  modeVideoBtn.addEventListener('click', () => setMode('video'));
+  modeAudioBtn.addEventListener('click', () => setMode('audio'));
+
   function pickMimeType() {
-    // Prefer native mp4 recording where the browser supports it.
-    const mp4Candidates = [
-      'video/mp4;codecs=avc1,mp4a.40.2',
-      'video/mp4;codecs=h264,aac',
-      'video/mp4'
-    ];
-    for (const c of mp4Candidates) {
-      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
-        return { mime: c, isMp4: true };
+    if (mode === 'video') {
+      const mp4Candidates = [
+        'video/mp4;codecs=avc1,mp4a.40.2',
+        'video/mp4;codecs=h264,aac',
+        'video/mp4'
+      ];
+      for (const c of mp4Candidates) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
+          return { mime: c, native: true };
+        }
       }
-    }
-    const webmCandidates = [
-      'video/webm;codecs=vp9,opus',
-      'video/webm;codecs=vp8,opus',
-      'video/webm'
-    ];
-    for (const c of webmCandidates) {
-      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
-        return { mime: c, isMp4: false };
+      const webmCandidates = [
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm'
+      ];
+      for (const c of webmCandidates) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
+          return { mime: c, native: false };
+        }
       }
+      return { mime: '', native: false };
+    } else {
+      const mp4Candidates = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/aac'];
+      for (const c of mp4Candidates) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
+          return { mime: c, native: true };
+        }
+      }
+      const webmCandidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+      for (const c of webmCandidates) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
+          return { mime: c, native: false };
+        }
+      }
+      return { mime: '', native: false };
     }
-    return { mime: '', isMp4: false };
   }
 
   async function startCamera() {
@@ -361,20 +479,26 @@
       return;
     }
     try {
-      setStatus('Requesting camera and microphone permission…');
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true
-      });
-      preview.srcObject = stream;
+      setStatus(mode === 'video' ? 'Requesting camera and microphone permission…' : 'Requesting microphone permission…');
+      const constraints = mode === 'video'
+        ? { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true }
+        : { video: false, audio: true };
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      if (mode === 'video') {
+        preview.srcObject = stream;
+      }
       stage.classList.remove('idle');
+      stage.classList.toggle('active', mode === 'audio');
       startBtn.disabled = true;
       recordBtn.disabled = false;
-      setStatus('Camera ready. Tap "Record" when your group is ready to begin.');
+      modeVideoBtn.setAttribute('data-locked', 'true');
+      modeAudioBtn.setAttribute('data-locked', 'true');
+      setStatus((mode === 'video' ? 'Camera' : 'Microphone') + ' ready. Tap "Record" when your group is ready to begin.');
     } catch (err) {
       console.error(err);
       if (err.name === 'NotAllowedError') {
-        setStatus('Camera/microphone permission was denied. Allow access in your browser settings and reload.', true);
+        setStatus('Permission was denied. Allow camera/microphone access in your browser settings and reload.', true);
       } else if (err.name === 'NotFoundError') {
         setStatus('No camera or microphone was found on this device.', true);
       } else {
@@ -389,11 +513,11 @@
     downloadBtn.classList.remove('on');
     const picked = pickMimeType();
     if (!picked.mime) {
-      setStatus('This browser cannot record video. Try Chrome, Edge, or Safari.', true);
+      setStatus('This browser cannot record ' + (mode === 'video' ? 'video' : 'audio') + '. Try Chrome, Edge, or Safari.', true);
       return;
     }
     recordedMime = picked.mime;
-    nativeMp4 = picked.isMp4;
+    nativeGoodFormat = picked.native;
 
     try {
       recorder = new MediaRecorder(stream, { mimeType: recordedMime });
@@ -439,51 +563,85 @@
   async function handleStop() {
     const rawBlob = new Blob(chunks, { type: recordedMime });
 
-    if (nativeMp4) {
+    if (nativeGoodFormat) {
       finalBlob = rawBlob;
-      finishAndOfferDownload('mp4');
+      finishAndOfferDownload(mode === 'video' ? 'mp4' : 'm4a');
       return;
     }
 
-    // Fallback path: convert webm -> mp4 in-browser with ffmpeg.wasm
-    setStatus('Recording finished. Converting to MP4 — this can take a while for longer recordings, please keep this tab open.');
-    progressWrap.classList.add('on');
-    progressFill.style.width = '2%';
-    progressLabel.textContent = 'Loading converter…';
-
-    try {
-      await loadFFmpeg();
-      const { createFFmpeg, fetchFile } = FFmpeg;
-      const ffmpeg = createFFmpeg({
-        log: false,
-        progress: (p) => {
-          if (p.ratio >= 0 && p.ratio <= 1) {
-            const pct = Math.round(p.ratio * 100);
-            progressFill.style.width = pct + '%';
-            progressLabel.textContent = 'Converting to MP4… ' + pct + '%';
+    if (mode === 'video') {
+      setStatus('Recording finished. Converting to MP4 — this can take a while for longer recordings, please keep this tab open.');
+      progressWrap.classList.add('on');
+      progressFill.style.width = '2%';
+      progressLabel.textContent = 'Loading converter…';
+      try {
+        await loadFFmpeg();
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        const ffmpeg = createFFmpeg({
+          log: false,
+          progress: (p) => {
+            if (p.ratio >= 0 && p.ratio <= 1) {
+              const pct = Math.round(p.ratio * 100);
+              progressFill.style.width = pct + '%';
+              progressLabel.textContent = 'Converting to MP4… ' + pct + '%';
+            }
           }
+        });
+        if (!ffmpeg.isLoaded()) {
+          progressLabel.textContent = 'Loading converter…';
+          await ffmpeg.load();
         }
-      });
-      if (!ffmpeg.isLoaded()) {
-        progressLabel.textContent = 'Loading converter…';
-        await ffmpeg.load();
+        ffmpeg.FS('writeFile', 'input.webm', await fetchFile(rawBlob));
+        progressLabel.textContent = 'Converting to MP4…';
+        await ffmpeg.run('-i', 'input.webm', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-c:a', 'aac', 'output.mp4');
+        const data = ffmpeg.FS('readFile', 'output.mp4');
+        finalBlob = new Blob([data.buffer], { type: 'video/mp4' });
+        progressFill.style.width = '100%';
+        progressLabel.textContent = 'Conversion complete.';
+        finishAndOfferDownload('mp4');
+      } catch (err) {
+        console.error(err);
+        finalBlob = rawBlob;
+        setStatus('MP4 conversion failed, but your recording is safe — offering it as .webm instead.', true);
+        finishAndOfferDownload('webm');
       }
-      const inputName = 'input.webm';
-      const outputName = 'output.mp4';
-      ffmpeg.FS('writeFile', inputName, await fetchFile(rawBlob));
-      progressLabel.textContent = 'Converting to MP4…';
-      await ffmpeg.run('-i', inputName, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-c:a', 'aac', outputName);
-      const data = ffmpeg.FS('readFile', outputName);
-      finalBlob = new Blob([data.buffer], { type: 'video/mp4' });
-      progressFill.style.width = '100%';
-      progressLabel.textContent = 'Conversion complete.';
-      finishAndOfferDownload('mp4');
-    } catch (err) {
-      console.error(err);
-      // Conversion failed — fall back to offering the original webm so the recording isn't lost.
-      finalBlob = rawBlob;
-      setStatus('MP4 conversion failed, but your recording is safe — offering it as .webm instead.', true);
-      finishAndOfferDownload('webm');
+    } else {
+      setStatus('Recording finished. Converting to MP3, please keep this tab open.');
+      progressWrap.classList.add('on');
+      progressFill.style.width = '2%';
+      progressLabel.textContent = 'Loading converter…';
+      try {
+        await loadFFmpeg();
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        const ffmpeg = createFFmpeg({
+          log: false,
+          progress: (p) => {
+            if (p.ratio >= 0 && p.ratio <= 1) {
+              const pct = Math.round(p.ratio * 100);
+              progressFill.style.width = pct + '%';
+              progressLabel.textContent = 'Converting to MP3… ' + pct + '%';
+            }
+          }
+        });
+        if (!ffmpeg.isLoaded()) {
+          progressLabel.textContent = 'Loading converter…';
+          await ffmpeg.load();
+        }
+        const inExt = recordedMime.indexOf('ogg') !== -1 ? 'ogg' : 'webm';
+        ffmpeg.FS('writeFile', 'input.' + inExt, await fetchFile(rawBlob));
+        progressLabel.textContent = 'Converting to MP3…';
+        await ffmpeg.run('-i', 'input.' + inExt, '-c:a', 'libmp3lame', '-q:a', '2', 'output.mp3');
+        const data = ffmpeg.FS('readFile', 'output.mp3');
+        finalBlob = new Blob([data.buffer], { type: 'audio/mp3' });
+        progressFill.style.width = '100%';
+        progressLabel.textContent = 'Conversion complete.';
+        finishAndOfferDownload('mp3');
+      } catch (err) {
+        console.error(err);
+        finalBlob = rawBlob;
+        setStatus('MP3 conversion failed, but your recording is safe — offering it in its original format instead.', true);
+        finishAndOfferDownload(recordedMime.indexOf('ogg') !== -1 ? 'ogg' : 'webm');
+      }
     }
   }
 
@@ -495,7 +653,7 @@
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Could not load the MP4 converter (no internet access to unpkg.com?).'));
+      script.onerror = () => reject(new Error('Could not load the converter (no internet access to unpkg.com?).'));
       document.head.appendChild(script);
     });
     return ffmpegLoadPromise;
