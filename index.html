@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discussion Recorder</title>
+<style>
+  :root {
+    --ink: #1c1f1a;
+    --paper: #f6f4ee;
+    --panel: #24271f;
+    --moss: #4a5d3a;
+    --moss-light: #7a9463;
+    --clay: #b5562f;
+    --line: #d8d3c4;
+    --mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', Consolas, monospace;
+    min-height: 100vh;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px;
+    margin-bottom: 24px;
+  }
+
+  h1 {
+    font-size: 1.15rem;
+    letter-spacing: 0.02em;
+    margin: 0;
+    text-transform: uppercase;
+  }
+
+  .tag {
+    font-size: 0.7rem;
+    color: var(--moss);
+    letter-spacing: 0.05em;
+  }
+
+  .stage {
+    background: var(--panel);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 4 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+    display: block;
+  }
+
+  .stage.idle::after {
+    content: "camera preview will appear here";
+    position: absolute;
+    color: #8b8f80;
+    font-size: 0.8rem;
+    letter-spacing: 0.03em;
+  }
+
+  .stage.idle video { display: none; }
+
+  .rec-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    padding: 5px 10px 5px 8px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+  }
+
+  .rec-badge.on { display: inline-flex; }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--clay);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .timer {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    display: none;
+  }
+  .timer.on { display: inline-flex; }
+
+  .status-line {
+    margin-top: 14px;
+    font-size: 0.8rem;
+    color: var(--moss);
+    min-height: 1.2em;
+    letter-spacing: 0.01em;
+  }
+  .status-line.error { color: var(--clay); }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 12px 18px;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+    border-radius: 3px;
+    flex: 1;
+    min-width: 120px;
+    transition: transform 0.08s ease, background 0.15s ease, color 0.15s ease;
+  }
+
+  button:active { transform: translateY(1px); }
+
+  button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  #startBtn {
+    background: var(--moss);
+    color: var(--paper);
+    border-color: var(--moss);
+  }
+  #startBtn:hover:not(:disabled) { background: var(--moss-light); border-color: var(--moss-light); }
+
+  #stopBtn {
+    background: var(--clay);
+    color: var(--paper);
+    border-color: var(--clay);
+  }
+  #stopBtn:hover:not(:disabled) { filter: brightness(1.08); }
+
+  #downloadBtn {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+    display: none;
+  }
+  #downloadBtn.on { display: block; }
+
+  .progress-wrap {
+    margin-top: 14px;
+    display: none;
+  }
+  .progress-wrap.on { display: block; }
+
+  .progress-track {
+    height: 6px;
+    background: var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--moss);
+    transition: width 0.2s ease;
+  }
+  .progress-label {
+    font-size: 0.72rem;
+    color: var(--moss);
+    margin-top: 6px;
+  }
+
+  footer {
+    margin-top: 36px;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+    font-size: 0.7rem;
+    color: #8b8f80;
+    line-height: 1.6;
+  }
+
+  .field {
+    margin-top: 18px;
+  }
+  label {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--moss);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  input[type="text"] {
+    width: 100%;
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 10px 12px;
+    border: 2px solid var(--line);
+    border-radius: 3px;
+    background: #fff;
+    color: var(--ink);
+  }
+  input[type="text"]:focus {
+    outline: none;
+    border-color: var(--moss);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Discussion Recorder</h1>
+    <span class="tag">local &amp; private</span>
+  </header>
+
+  <div class="field">
+    <label for="groupName">Group / session label (used in filename)</label>
+    <input type="text" id="groupName" placeholder="e.g. 3A-group2-topic1" maxlength="60">
+  </div>
+
+  <div class="stage idle" id="stage">
+    <video id="preview" autoplay muted playsinline></video>
+    <span class="rec-badge" id="recBadge"><span class="dot"></span>REC</span>
+    <span class="timer" id="timer">00:00</span>
+  </div>
+
+  <div class="status-line" id="statusLine">Tap "Start camera" to begin.</div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label" id="progressLabel">Converting to MP4…</div>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn">Start camera</button>
+    <button id="recordBtn" disabled>Record</button>
+    <button id="stopBtn" disabled>Stop</button>
+    <button id="downloadBtn">Download recording</button>
+  </div>
+
+  <footer>
+    Recording happens entirely in this browser tab — nothing is uploaded anywhere.
+    The file downloads straight to this device when you stop. Works best in
+    Chrome, Edge, or Safari over a secure (https) connection. Keep this tab open
+    and in the foreground while recording.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  const stage = document.getElementById('stage');
+  const preview = document.getElementById('preview');
+  const startBtn = document.getElementById('startBtn');
+  const recordBtn = document.getElementById('recordBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const statusLine = document.getElementById('statusLine');
+  const recBadge = document.getElementById('recBadge');
+  const timerEl = document.getElementById('timer');
+  const groupNameInput = document.getElementById('groupName');
+  const progressWrap = document.getElementById('progressWrap');
+  const progressFill = document.getElementById('progressFill');
+  const progressLabel = document.getElementById('progressLabel');
+
+  let stream = null;
+  let recorder = null;
+  let chunks = [];
+  let recordedMime = '';
+  let nativeMp4 = false;
+  let timerInterval = null;
+  let seconds = 0;
+  let finalBlob = null;
+
+  function setStatus(msg, isError) {
+    statusLine.textContent = msg;
+    statusLine.classList.toggle('error', !!isError);
+  }
+
+  function fmtTime(s) {
+    const m = Math.floor(s / 60).toString().padStart(2, '0');
+    const r = (s % 60).toString().padStart(2, '0');
+    return m + ':' + r;
+  }
+
+  function pickMimeType() {
+    // Prefer native mp4 recording where the browser supports it.
+    const mp4Candidates = [
+      'video/mp4;codecs=avc1,mp4a.40.2',
+      'video/mp4;codecs=h264,aac',
+      'video/mp4'
+    ];
+    for (const c of mp4Candidates) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
+        return { mime: c, isMp4: true };
+      }
+    }
+    const webmCandidates = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm'
+    ];
+    for (const c of webmCandidates) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
+        return { mime: c, isMp4: false };
+      }
+    }
+    return { mime: '', isMp4: false };
+  }
+
+  async function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('This browser does not support camera/mic capture. Try Chrome, Edge, or Safari.', true);
+      return;
+    }
+    try {
+      setStatus('Requesting camera and microphone permission…');
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: true
+      });
+      preview.srcObject = stream;
+      stage.classList.remove('idle');
+      startBtn.disabled = true;
+      recordBtn.disabled = false;
+      setStatus('Camera ready. Tap "Record" when your group is ready to begin.');
+    } catch (err) {
+      console.error(err);
+      if (err.name === 'NotAllowedError') {
+        setStatus('Camera/microphone permission was denied. Allow access in your browser settings and reload.', true);
+      } else if (err.name === 'NotFoundError') {
+        setStatus('No camera or microphone was found on this device.', true);
+      } else {
+        setStatus('Could not access camera/microphone: ' + err.message, true);
+      }
+    }
+  }
+
+  function startRecording() {
+    chunks = [];
+    finalBlob = null;
+    downloadBtn.classList.remove('on');
+    const picked = pickMimeType();
+    if (!picked.mime) {
+      setStatus('This browser cannot record video. Try Chrome, Edge, or Safari.', true);
+      return;
+    }
+    recordedMime = picked.mime;
+    nativeMp4 = picked.isMp4;
+
+    try {
+      recorder = new MediaRecorder(stream, { mimeType: recordedMime });
+    } catch (err) {
+      console.error(err);
+      setStatus('Could not start recording: ' + err.message, true);
+      return;
+    }
+
+    recorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+
+    recorder.onstop = handleStop;
+
+    recorder.start(1000);
+    seconds = 0;
+    timerEl.textContent = fmtTime(seconds);
+    timerEl.classList.add('on');
+    recBadge.classList.add('on');
+    timerInterval = setInterval(() => {
+      seconds++;
+      timerEl.textContent = fmtTime(seconds);
+    }, 1000);
+
+    recordBtn.disabled = true;
+    stopBtn.disabled = false;
+    startBtn.disabled = true;
+    setStatus('Recording… tap "Stop" when the discussion ends.');
+  }
+
+  function stopRecording() {
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
+    }
+    clearInterval(timerInterval);
+    recBadge.classList.remove('on');
+    stopBtn.disabled = true;
+    recordBtn.disabled = true;
+    setStatus('Finishing up…');
+  }
+
+  async function handleStop() {
+    const rawBlob = new Blob(chunks, { type: recordedMime });
+
+    if (nativeMp4) {
+      finalBlob = rawBlob;
+      finishAndOfferDownload('mp4');
+      return;
+    }
+
+    // Fallback path: convert webm -> mp4 in-browser with ffmpeg.wasm
+    setStatus('Recording finished. Converting to MP4 — this can take a while for longer recordings, please keep this tab open.');
+    progressWrap.classList.add('on');
+    progressFill.style.width = '2%';
+    progressLabel.textContent = 'Loading converter…';
+
+    try {
+      await loadFFmpeg();
+      const { createFFmpeg, fetchFile } = FFmpeg;
+      const ffmpeg = createFFmpeg({
+        log: false,
+        progress: (p) => {
+          if (p.ratio >= 0 && p.ratio <= 1) {
+            const pct = Math.round(p.ratio * 100);
+            progressFill.style.width = pct + '%';
+            progressLabel.textContent = 'Converting to MP4… ' + pct + '%';
+          }
+        }
+      });
+      if (!ffmpeg.isLoaded()) {
+        progressLabel.textContent = 'Loading converter…';
+        await ffmpeg.load();
+      }
+      const inputName = 'input.webm';
+      const outputName = 'output.mp4';
+      ffmpeg.FS('writeFile', inputName, await fetchFile(rawBlob));
+      progressLabel.textContent = 'Converting to MP4…';
+      await ffmpeg.run('-i', inputName, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-c:a', 'aac', outputName);
+      const data = ffmpeg.FS('readFile', outputName);
+      finalBlob = new Blob([data.buffer], { type: 'video/mp4' });
+      progressFill.style.width = '100%';
+      progressLabel.textContent = 'Conversion complete.';
+      finishAndOfferDownload('mp4');
+    } catch (err) {
+      console.error(err);
+      // Conversion failed — fall back to offering the original webm so the recording isn't lost.
+      finalBlob = rawBlob;
+      setStatus('MP4 conversion failed, but your recording is safe — offering it as .webm instead.', true);
+      finishAndOfferDownload('webm');
+    }
+  }
+
+  let ffmpegLoadPromise = null;
+  function loadFFmpeg() {
+    if (window.FFmpeg) return Promise.resolve();
+    if (ffmpegLoadPromise) return ffmpegLoadPromise;
+    ffmpegLoadPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Could not load the MP4 converter (no internet access to unpkg.com?).'));
+      document.head.appendChild(script);
+    });
+    return ffmpegLoadPromise;
+  }
+
+  function finishAndOfferDownload(ext) {
+    progressWrap.classList.remove('on');
+    timerEl.classList.remove('on');
+    const url = URL.createObjectURL(finalBlob);
+    const label = (groupNameInput.value || 'discussion').trim().replace(/[^a-z0-9\-_]+/gi, '-');
+    const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
+    const filename = label + '_' + stamp + '.' + ext;
+
+    downloadBtn.classList.add('on');
+    downloadBtn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+
+    setStatus('Recording ready (' + fmtTime(seconds) + '). Tap "Download recording" to save it to this device.');
+    startBtn.disabled = false;
+    recordBtn.disabled = false;
+  }
+
+  startBtn.addEventListener('click', startCamera);
+  recordBtn.addEventListener('click', startRecording);
+  stopBtn.addEventListener('click', stopRecording);
+
+  window.addEventListener('beforeunload', (e) => {
+    if (recorder && recorder.state === 'recording') {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
